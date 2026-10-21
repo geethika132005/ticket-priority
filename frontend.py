@@ -1,1139 +1,920 @@
 """
-ProvenTech AI Ticket Management Portal
-Run: python -m streamlit run frontend.py
+NEXUS AI Enterprise Support Intelligence Platform
+Executive-Grade Service Management & ML Operations Dashboard
 """
 
-from __future__ import annotations
-
-import re
-from datetime import date, datetime, time
-from typing import Any
-
+import json
+import os
+from datetime import datetime
 import pandas as pd
 import requests
 import streamlit as st
 
-# ── Brand ─────────────────────────────────────────────────────────────────────
-NAVY = "#032F57"
-YELLOW = "#FFC400"
-BG = "#F7F9FC"
-CARD = "#FFFFFF"
-TEXT = "#0F172A"
+# ── API Endpoint Configuration ───────────────────────────────────────────────
+API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:5000")
+API_PREDICT = f"{API_BASE}/predict"
+API_TICKETS = f"{API_BASE}/tickets"
+API_AGENTS = f"{API_BASE}/agents"
+API_ANALYTICS = f"{API_BASE}/analytics/overview"
+API_METRICS = f"{API_BASE}/analytics/model"
+API_AUTH_LOGIN = f"{API_BASE}/auth/login"
+API_AUTH_REGISTER = f"{API_BASE}/auth/register"
+API_EXPORT = f"{API_BASE}/export/tickets"
 
-API_URL = "http://127.0.0.1:5000/predict"
-REQUEST_TIMEOUT = 30
+# ── Page Configuration ────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="NEXUS AI - Enterprise Support Platform",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
-USER = {
-    "name": "Alex Morgan",
-    "first": "Alex",
-    "role": "Support Engineer",
-    "department": "IT Operations",
-    "email": "alex.morgan@proventech.internal",
-}
+# ── Bulletproof Enterprise CSS (Prevents Any White Leaks, Enforces Contrast) ──
+st.markdown(
+    """
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-NAV_ITEMS = [
-    ("Dashboard", "📊"),
-    ("Raise Ticket", "🎫"),
-    ("Ticket History", "📋"),
-    ("AI Insights", "🤖"),
-    ("Profile", "👤"),
-    ("Logout", "🚪"),
-]
-
-PRIORITY_STYLES = {
-    "High": {"bg": "#FEE2E2", "text": "#EF4444", "border": "#FECACA"},
-    "Medium": {"bg": "#FEF3C7", "text": "#F59E0B", "border": "#FDE68A"},
-    "Low": {"bg": "#DCFCE7", "text": "#22C55E", "border": "#BBF7D0"},
-}
-
-KPI_ACCENTS = {
-    "total": YELLOW,
-    "open": "#38BDF8",
-    "high": "#EF4444",
-    "resolved": "#22C55E",
-}
-
-
-def theme_palette(dark_mode: bool) -> dict[str, str]:
-    if dark_mode:
-        return {
-            "bg": "#0B1220",
-            "card": "#111827",
-            "text": "#F1F5F9",
-            "muted": "#94A3B8",
-            "border": "#1E293B",
-            "border_soft": "#334155",
-            "input_bg": "#0F172A",
-            "chip_bg": "#1E293B",
-            "title": "#F8FAFC",
-            "heading": "#E2E8F0",
-            "footer_border": "#1E293B",
-            "empty_border": "#475569",
-            "row_border": "#1E293B",
-            "focus_ring": "rgba(255,196,0,0.2)",
-        }
-    return {
-        "bg": BG,
-        "card": CARD,
-        "text": TEXT,
-        "muted": "#64748B",
-        "border": "#E8EDF3",
-        "border_soft": "#E2E8F0",
-        "input_bg": "#FFFFFF",
-        "chip_bg": BG,
-        "title": NAVY,
-        "heading": NAVY,
-        "footer_border": "#E8EDF3",
-        "empty_border": "#CBD5E1",
-        "row_border": "#F1F5F9",
-        "focus_ring": "rgba(3,47,87,0.14)",
+    /* 1. Global Background Enforcement (Cover Every Possible Streamlit Container) */
+    html, body,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stHeader"],
+    [data-testid="stToolbar"],
+    .stApp, .main, section.main, .block-container {
+        background-color: #0B0F19 !important;
+        color: #E2E8F0 !important;
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
     }
 
-
-# ── Styles ────────────────────────────────────────────────────────────────────
-def inject_styles(sidebar_open: bool = True, dark_mode: bool = False) -> None:
-    t = theme_palette(dark_mode)
-    sidebar_css = ""
-    if not sidebar_open:
-        sidebar_css = """
-            section[data-testid="stSidebar"] {
-                transform: translateX(-110%) !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
-                min-width: 0 !important;
-                max-width: 0 !important;
-                width: 0 !important;
-            }
-            section[data-testid="stSidebar"] > div {
-                display: none !important;
-            }
-            [data-testid="stAppViewContainer"] {
-                margin-left: 0 !important;
-                padding-left: 1rem !important;
-            }
-            [data-testid="stSidebarCollapsedControl"] {
-                display: none !important;
-            }
-        """
-
-    st.markdown(
-        f"""
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-            html, body, [class*="css"] {{ font-family: 'Inter', sans-serif; }}
-            .stApp {{ background: {t["bg"]}; }}
-            [data-testid="stAppViewContainer"] {{ background: {t["bg"]}; }}
-            #MainMenu, footer {{ visibility: hidden; height: 0; }}
-
-            {sidebar_css}
-
-            /* Keep Streamlit native sidebar collapse control visible when sidebar open */
-            [data-testid="stSidebarCollapsedControl"] {{
-                color: {NAVY} !important;
-                z-index: 9999 !important;
-            }}
-            [data-testid="collapsedControl"] {{
-                color: {NAVY} !important;
-            }}
-
-            @keyframes fadeIn {{
-                from {{ opacity: 0; transform: translateY(12px); }}
-                to   {{ opacity: 1; transform: translateY(0); }}
-            }}
-            @keyframes slideUp {{
-                from {{ opacity: 0; transform: translateY(20px); }}
-                to   {{ opacity: 1; transform: translateY(0); }}
-            }}
-            @keyframes kpiIn {{
-                from {{ opacity: 0; transform: translateY(16px) scale(0.97); }}
-                to   {{ opacity: 1; transform: translateY(0) scale(1); }}
-            }}
-            @keyframes successIn {{
-                from {{ opacity: 0; transform: translateY(-6px); }}
-                to   {{ opacity: 1; transform: translateY(0); }}
-            }}
-
-            .fade-in {{ animation: fadeIn 0.5s ease both; }}
-            .slide-up {{ animation: slideUp 0.55s ease both; }}
-            .success-in {{ animation: successIn 0.4s ease both; }}
-            .kpi-1 {{ animation: kpiIn 0.5s ease 0.04s both; }}
-            .kpi-2 {{ animation: kpiIn 0.5s ease 0.10s both; }}
-            .kpi-3 {{ animation: kpiIn 0.5s ease 0.16s both; }}
-            .kpi-4 {{ animation: kpiIn 0.5s ease 0.22s both; }}
-            .result-1 {{ animation: slideUp 0.5s ease 0.06s both; }}
-            .result-2 {{ animation: slideUp 0.5s ease 0.14s both; }}
-            .result-3 {{ animation: slideUp 0.5s ease 0.22s both; }}
-
-            /* Sidebar */
-            section[data-testid="stSidebar"] {{
-                background: linear-gradient(185deg, {NAVY} 0%, #021E3A 100%) !important;
-            }}
-            section[data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.1); margin: 0.85rem 0; }}
-            section[data-testid="stSidebar"] div.stButton > button {{
-                background: transparent !important; color: #94A3B8 !important;
-                border: none !important; text-align: left !important;
-                padding: 0.72rem 1rem !important; border-radius: 10px !important;
-                font-weight: 500 !important; font-size: 0.9rem !important;
-                width: 100% !important; transition: all 0.25s cubic-bezier(0.4,0,0.2,1) !important;
-                box-shadow: none !important;
-            }}
-            section[data-testid="stSidebar"] div.stButton > button:hover {{
-                background: rgba(255,196,0,0.1) !important; color: #FFF !important;
-                transform: translateX(4px);
-            }}
-            section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {{
-                background: rgba(255,196,0,0.14) !important; color: {YELLOW} !important;
-                border-left: 3px solid {YELLOW} !important; font-weight: 700 !important;
-            }}
-
-            .block-container {{ max-width: 1160px; padding-top: 0.75rem; padding-bottom: 2rem; }}
-
-            /* Logo */
-            .pt-logo {{ display: flex; align-items: center; gap: 0.7rem; padding: 1.5rem 1rem 1rem; }}
-            .pt-logo-mark {{
-                width: 40px; height: 40px; background: {YELLOW}; border-radius: 11px;
-                display: flex; align-items: center; justify-content: center;
-                font-weight: 900; color: {NAVY}; font-size: 1.15rem;
-                box-shadow: 0 4px 12px rgba(255,196,0,0.28);
-            }}
-            .pt-logo-name {{ color: #FFF; font-weight: 800; font-size: 1.05rem; line-height: 1.2; }}
-            .pt-logo-sub {{
-                color: #64748B; font-size: 0.68rem; font-weight: 500;
-                text-transform: uppercase; letter-spacing: 0.07em;
-            }}
-
-            /* Theme toggle in header */
-            .theme-panel {{
-                background: {t["chip_bg"]};
-                border: 1px solid {t["border_soft"]};
-                border-radius: 12px;
-                padding: 0.55rem 0.65rem 0.5rem;
-                text-align: center;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:has(.theme-control-label) {{
-                background: {t["chip_bg"]} !important;
-                border-color: {t["border_soft"]} !important;
-                border-radius: 12px !important;
-                padding: 0.6rem 0.75rem 0.55rem !important;
-                min-width: 155px;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:has(.theme-control-label):hover {{
-                border-color: {YELLOW} !important;
-            }}
-            .theme-control-label {{
-                font-size: 0.68rem; font-weight: 700; color: {t["muted"]};
-                text-transform: uppercase; letter-spacing: 0.08em;
-                margin: 0 0 0.5rem; text-align: center;
-            }}
-            .theme-icon-wrap {{
-                font-size: 1rem; text-align: center; line-height: 1.75rem;
-                padding-top: 0.2rem; user-select: none;
-            }}
-            .theme-status {{
-                font-size: 0.72rem; font-weight: 600; color: {t["muted"]};
-                text-align: center; margin: 0.4rem 0 0; white-space: nowrap;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:has(.theme-control-label) div[data-testid="stToggle"] {{
-                display: flex !important; align-items: center !important;
-                justify-content: center !important; margin: 0 !important; padding: 0 !important;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:has(.theme-control-label) div[data-testid="stToggle"] label {{
-                display: none !important; width: 0 !important; min-width: 0 !important;
-                overflow: hidden !important; margin: 0 !important; padding: 0 !important;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:has(.theme-control-label) div[data-testid="stToggle"] button[role="switch"] {{
-                transition: background 0.25s ease !important;
-                min-width: 2.85rem !important; min-height: 1.55rem !important;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:has(.theme-control-label) div[data-testid="stToggle"] button[role="switch"][aria-checked="true"] {{
-                background: {YELLOW} !important;
-            }}
-            .pt-header-block {{
-                background: {t["card"]}; border: 1px solid {t["border"]};
-                border-radius: 16px; padding: 1.1rem 1.25rem 1rem;
-                margin-bottom: 1.75rem; box-shadow: 0 2px 12px rgba(3,47,87,0.05);
-                animation: fadeIn 0.45s ease both;
-            }}
-
-            /* Header (legacy inner — kept for profile chip) */
-            .profile-chip {{
-                display: flex; align-items: center; gap: 0.75rem;
-                background: {t["chip_bg"]}; border: 1px solid {t["border_soft"]}; border-radius: 12px;
-                padding: 0.55rem 1rem 0.55rem 0.55rem;
-                box-shadow: 0 2px 8px rgba(3,47,87,0.06);
-                transition: box-shadow 0.28s ease, transform 0.28s ease;
-            }}
-            .profile-chip:hover {{
-                box-shadow: 0 4px 16px rgba(3,47,87,0.1);
-                transform: translateY(-1px);
-            }}
-            .profile-chip .avatar {{
-                width: 44px; height: 44px; border-radius: 50%; background: {NAVY};
-                color: {YELLOW}; display: flex; align-items: center; justify-content: center;
-                font-weight: 700; font-size: 0.9rem; border: 2px solid {YELLOW}; flex-shrink: 0;
-            }}
-            .profile-chip .name {{ font-weight: 700; font-size: 0.88rem; color: {t["text"]}; line-height: 1.2; }}
-            .profile-chip .role {{ font-size: 0.75rem; color: {t["muted"]}; margin-top: 0.1rem; }}
-
-            /* Typography */
-            .page-title {{
-                font-size: 1.55rem; font-weight: 800; color: {t["title"]};
-                margin: 0 0 0.35rem; animation: fadeIn 0.45s ease both;
-            }}
-            .page-sub {{
-                font-size: 0.92rem; color: {t["muted"]}; margin: 0 0 1.75rem;
-                font-weight: 400; animation: fadeIn 0.45s ease 0.05s both;
-            }}
-            .section-title {{
-                font-size: 1.05rem; font-weight: 700; color: {t["heading"]}; margin: 0 0 0.25rem;
-            }}
-            .section-sub {{
-                font-size: 0.88rem; color: {t["muted"]}; margin: 0 0 1rem;
-            }}
-            .section-label {{
-                font-size: 0.92rem; font-weight: 700; color: {t["heading"]};
-                margin: 0.75rem 0 0.5rem;
-            }}
-            .field-label {{
-                font-size: 0.88rem; font-weight: 600; color: {t["text"]};
-                margin: 0.25rem 0 0.35rem;
-            }}
-
-            /* KPI */
-            .kpi {{
-                background: {t["card"]}; border: 1px solid {t["border"]}; border-radius: 14px;
-                padding: 1.35rem 1.4rem 1.25rem; box-shadow: 0 2px 10px rgba(3,47,87,0.05);
-                transition: all 0.3s cubic-bezier(0.4,0,0.2,1); height: 100%;
-                border-top: 3px solid var(--accent);
-            }}
-            .kpi:hover {{
-                transform: translateY(-4px);
-                box-shadow: 0 10px 28px rgba(3,47,87,0.1);
-            }}
-            .kpi-icon {{ font-size: 1.35rem; margin-bottom: 0.7rem; }}
-            .kpi-val {{ font-size: 2rem; font-weight: 800; color: {t["title"]}; line-height: 1; margin-bottom: 0.3rem; }}
-            .kpi-label {{
-                font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
-                letter-spacing: 0.06em; color: {t["muted"]};
-            }}
-
-            /* Form area — no extra box wrapper */
-            .raise-form-wrap {{
-                animation: fadeIn 0.45s ease both;
-            }}
-
-            /* Result cards */
-            .rc {{
-                background: {t["card"]}; border: 1px solid {t["border"]}; border-radius: 14px;
-                padding: 1.2rem 1.35rem; box-shadow: 0 2px 10px rgba(3,47,87,0.04); height: 100%;
-                transition: transform 0.28s cubic-bezier(0.4,0,0.2,1),
-                            box-shadow 0.28s cubic-bezier(0.4,0,0.2,1);
-            }}
-            .rc:hover {{
-                transform: translateY(-3px);
-                box-shadow: 0 8px 22px rgba(3,47,87,0.09);
-            }}
-            .rc-label {{
-                font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-                letter-spacing: 0.08em; color: {t["muted"]}; margin-bottom: 0.45rem;
-            }}
-            .rc-val {{ font-size: 1.05rem; font-weight: 700; color: {t["text"]}; word-break: break-word; }}
-            .badge {{
-                display: inline-flex; align-items: center; gap: 0.35rem;
-                padding: 0.32rem 0.85rem; border-radius: 999px; font-size: 0.88rem; font-weight: 700;
-            }}
-            .badge-dot {{ width: 7px; height: 7px; border-radius: 50%; }}
-
-            /* Empty state */
-            .empty-state {{
-                text-align: center; padding: 3.5rem 2rem;
-                background: {t["card"]}; border: 1px dashed {t["empty_border"]}; border-radius: 16px;
-                animation: fadeIn 0.5s ease both;
-            }}
-            .empty-state .icon {{ font-size: 2.75rem; margin-bottom: 0.75rem; }}
-            .empty-state h3 {{ color: {t["title"]}; font-weight: 700; margin: 0 0 0.4rem; font-size: 1.1rem; }}
-            .empty-state p {{ color: {t["muted"]}; font-size: 0.9rem; margin: 0; }}
-
-            /* Profile card */
-            .profile-card {{
-                background: {t["card"]}; border: 1px solid {t["border"]}; border-radius: 16px;
-                padding: 2.5rem 2rem; box-shadow: 0 4px 20px rgba(3,47,87,0.06);
-                max-width: 520px; margin: 0 auto; text-align: center;
-                animation: fadeIn 0.5s ease both;
-            }}
-            .profile-card .avatar-lg {{
-                width: 80px; height: 80px; border-radius: 50%; background: {NAVY};
-                color: {YELLOW}; display: flex; align-items: center; justify-content: center;
-                font-weight: 800; font-size: 1.6rem; border: 3px solid {YELLOW};
-                margin: 0 auto 1.25rem;
-            }}
-            .profile-card .pname {{ font-size: 1.35rem; font-weight: 800; color: {t["title"]}; margin: 0 0 0.2rem; }}
-            .profile-card .prole {{ color: {t["muted"]}; font-size: 0.9rem; margin: 0 0 1.75rem; }}
-            .profile-row {{
-                display: flex; justify-content: space-between; align-items: center;
-                padding: 0.75rem 0; border-top: 1px solid {t["row_border"]}; text-align: left;
-            }}
-            .profile-row .plabel {{ font-size: 0.82rem; font-weight: 600; color: {t["muted"]}; }}
-            .profile-row .pval {{ font-size: 0.88rem; font-weight: 600; color: {t["text"]}; }}
-
-            /* Footer */
-            .pt-footer {{
-                text-align: center; color: {t["muted"]}; font-size: 0.78rem;
-                margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid {t["footer_border"]};
-            }}
-
-            /* Inputs */
-            div[data-testid="stTextInput"] input,
-            div[data-testid="stTextArea"] textarea {{
-                background: {t["input_bg"]} !important; color: {t["text"]} !important;
-                border: 1.5px solid {t["border_soft"]} !important; border-radius: 12px !important;
-                padding: 0.8rem 1rem !important; font-size: 0.95rem !important;
-                transition: border-color 0.2s, box-shadow 0.25s !important;
-            }}
-            div[data-testid="stTextInput"] input::placeholder,
-            div[data-testid="stTextArea"] textarea::placeholder {{ color: #94A3B8 !important; opacity: 1 !important; }}
-            div[data-testid="stTextInput"] input:focus,
-            div[data-testid="stTextArea"] textarea:focus,
-            div[data-testid="stDateInput"] input:focus {{
-                border-color: {YELLOW if dark_mode else NAVY} !important;
-                box-shadow: 0 0 0 4px {t["focus_ring"]} !important;
-                outline: none !important;
-            }}
-            div[data-testid="stTextInput"] label,
-            div[data-testid="stTextArea"] label,
-            div[data-testid="stDateInput"] label {{
-                color: {t["text"]} !important; font-weight: 600 !important; font-size: 0.9rem !important;
-            }}
-            div[data-testid="stDateInput"] input {{
-                border-radius: 10px !important; border: 1.5px solid {t["border_soft"]} !important;
-                background: {t["input_bg"]} !important; color: {t["text"]} !important;
-                transition: border-color 0.2s, box-shadow 0.25s !important;
-            }}
-
-            /* General button hover */
-            div[data-testid="stButton"] > button {{
-                transition: all 0.26s cubic-bezier(0.4,0,0.2,1) !important;
-            }}
-            div[data-testid="stButton"] > button:hover {{
-                transform: translateY(-2px);
-                box-shadow: 0 4px 14px rgba(3,47,87,0.12) !important;
-            }}
-
-            /* Deadline section */
-            div[data-testid="stVerticalBlockBorderWrapper"] {{
-                background: {t["card"]} !important;
-                border: 1px solid {t["border"]} !important;
-                border-radius: 12px !important;
-                padding: 0.85rem 1rem 1rem !important;
-                margin-bottom: 0.75rem !important;
-                box-shadow: 0 2px 8px rgba(3,47,87,0.04);
-                transition: border-color 0.25s, box-shadow 0.25s;
-            }}
-            div[data-testid="stVerticalBlockBorderWrapper"]:hover {{
-                border-color: {YELLOW} !important;
-                box-shadow: 0 4px 14px rgba(255,196,0,0.12);
-            }}
-
-            /* Sidebar toggle button */
-            div[data-testid="stSidebar"] div[data-testid="stButton"] button.sidebar-toggle-btn {{
-                background: rgba(255,196,0,0.12) !important;
-                color: {YELLOW} !important;
-                border: 1px solid rgba(255,196,0,0.25) !important;
-                border-radius: 10px !important;
-                font-weight: 600 !important;
-                font-size: 0.82rem !important;
-                text-align: center !important;
-                padding: 0.55rem 0.75rem !important;
-                margin-bottom: 0.5rem !important;
-            }}
-            div[data-testid="stSidebar"] div[data-testid="stButton"] button.sidebar-toggle-btn:hover {{
-                background: rgba(255,196,0,0.22) !important;
-                transform: none !important;
-            }}
-            button[data-testid="baseButton-secondary"][aria-label="Open sidebar"],
-            button[kind="header"] {{
-                color: {NAVY} !important;
-            }}
-
-            /* Main-area menu open button */
-            div[data-testid="column"] > div > div[data-testid="stButton"] > button {{
-                background: {NAVY} !important;
-                color: {YELLOW} !important;
-                border: none !important;
-                border-radius: 10px !important;
-                font-size: 1.2rem !important;
-                font-weight: 700 !important;
-                min-height: 44px !important;
-                box-shadow: 0 2px 10px rgba(3,47,87,0.18) !important;
-                transition: all 0.22s ease !important;
-            }}
-            div[data-testid="column"] > div > div[data-testid="stButton"] > button:hover {{
-                background: #021E3A !important;
-                transform: scale(1.06);
-                box-shadow: 0 4px 16px rgba(3,47,87,0.28) !important;
-            }}
-
-            /* Submit button */
-            div[data-testid="stFormSubmitButton"] button,
-            div[data-testid="stButton"] > button[kind="primary"] {{
-                background: {YELLOW} !important; color: {NAVY} !important;
-                border: none !important; border-radius: 12px !important;
-                padding: 0.9rem !important; font-weight: 800 !important; font-size: 1rem !important;
-                box-shadow: 0 4px 16px rgba(255,196,0,0.32) !important;
-                transition: all 0.28s cubic-bezier(0.4,0,0.2,1) !important; width: 100%;
-            }}
-            div[data-testid="stFormSubmitButton"] button:hover,
-            div[data-testid="stButton"] > button[kind="primary"]:hover {{
-                background: #E6B000 !important;
-                box-shadow: 0 8px 24px rgba(255,196,0,0.42) !important;
-                transform: scale(1.02);
-            }}
-            div[data-testid="stFormSubmitButton"] button:active,
-            div[data-testid="stButton"] > button[kind="primary"]:active {{ transform: scale(0.98); }}
-
-            div[data-testid="stAlert"] {{ border-radius: 12px; animation: successIn 0.4s ease both; }}
-            div[data-testid="stDataFrame"] {{ border: 1px solid {t["border"]}; border-radius: 12px; overflow: hidden; }}
-            div[data-testid="stMetric"] label {{ color: {t["muted"]} !important; }}
-            div[data-testid="stMetric"] div[data-testid="stMetricValue"] {{ color: {t["text"]} !important; }}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-def init_state() -> None:
-    defaults: dict[str, Any] = {
-        "page": "Dashboard",
-        "logged_in": True,
-        "ticket_history": [],
-        "latest_prediction": None,
-        "prediction_error": None,
-        "show_success": False,
-        "ticket_id_date": "",
-        "ticket_id_seq": 0,
-        "last_active": datetime.now().strftime("%Y-%m-%d %H:%M"),
-        "sidebar_open": True,
-        "dark_mode": False,
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1200px !important;
     }
-    for k, v in defaults.items():
-        if k not in st.session_state:
-            st.session_state[k] = v
+
+    /* 2. Professional Typography Hierarchy */
+    h1, h2, h3, h4, h5, h6 {
+        color: #FFFFFF !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.025em !important;
+    }
+
+    p, span, label, div {
+        color: #CBD5E1;
+    }
+
+    .top-pill {
+        display: inline-block;
+        background: rgba(59, 130, 246, 0.12);
+        color: #60A5FA !important;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        padding: 4px 14px;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+    }
+
+    .hero-title {
+        font-size: 2.25rem !important;
+        font-weight: 800 !important;
+        color: #FFFFFF !important;
+        letter-spacing: -0.03em !important;
+        margin-bottom: 6px !important;
+    }
+
+    .hero-subtitle {
+        font-size: 1.05rem !important;
+        color: #94A3B8 !important;
+        line-height: 1.6 !important;
+        margin-bottom: 32px !important;
+    }
+
+    /* 3. Portal Selection Cards */
+    .portal-box {
+        background: #111827;
+        border: 1px solid #1E293B;
+        border-radius: 14px;
+        padding: 30px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .portal-box:hover {
+        border-color: #3B82F6;
+        box-shadow: 0 12px 30px -6px rgba(59, 130, 246, 0.25);
+        transform: translateY(-2px);
+    }
+
+    .portal-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #38BDF8 !important;
+        margin-bottom: 8px;
+    }
+
+    .portal-heading {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #FFFFFF !important;
+        margin-bottom: 12px;
+    }
+
+    .portal-text {
+        font-size: 0.92rem;
+        color: #94A3B8 !important;
+        line-height: 1.6;
+        margin-bottom: 20px;
+    }
+
+    .portal-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 24px 0;
+    }
+
+    .portal-features li {
+        font-size: 0.85rem;
+        color: #CBD5E1 !important;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+    }
+
+    .portal-features li::before {
+        content: "•";
+        color: #38BDF8;
+        font-weight: bold;
+        font-size: 1.2rem;
+        margin-right: 10px;
+    }
+
+    /* 4. Streamlit Primary and Secondary Buttons Override */
+    div.stButton > button {
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 0.92rem !important;
+        padding: 0.55rem 1.25rem !important;
+        transition: all 0.2s ease !important;
+    }
+
+    div.stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #2563EB, #1D4ED8) !important;
+        color: #FFFFFF !important;
+        border: 1px solid #3B82F6 !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+    }
+
+    div.stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #1D4ED8, #1E40AF) !important;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+    }
+
+    div.stButton > button[kind="secondary"] {
+        background: #1E293B !important;
+        color: #F8FAFC !important;
+        border: 1px solid #334155 !important;
+    }
+
+    div.stButton > button[kind="secondary"]:hover {
+        background: #334155 !important;
+        border-color: #475569 !important;
+        color: #FFFFFF !important;
+    }
+
+    /* 5. Inputs, Textareas, Selectboxes */
+    input, textarea, select {
+        color: #FFFFFF !important;
+        background-color: #111827 !important;
+        border: 1px solid #334155 !important;
+        border-radius: 8px !important;
+    }
+
+    input:focus, textarea:focus {
+        border-color: #3B82F6 !important;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+    }
+
+    div[data-baseweb="select"] > div {
+        background-color: #111827 !important;
+        border-color: #334155 !important;
+    }
+
+    div[data-baseweb="select"] * {
+        color: #FFFFFF !important;
+    }
+
+    /* 6. Expanders */
+    [data-testid="stExpander"] {
+        background-color: #111827 !important;
+        border: 1px solid #1E293B !important;
+        border-radius: 10px !important;
+        margin-bottom: 12px !important;
+    }
+
+    [data-testid="stExpander"] summary {
+        color: #FFFFFF !important;
+        font-weight: 600 !important;
+        padding: 12px 18px !important;
+    }
+
+    /* 7. Metric Cards */
+    .stat-card {
+        background: #111827;
+        border: 1px solid #1E293B;
+        border-radius: 10px;
+        padding: 18px 22px;
+        height: 100%;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94A3B8 !important;
+        margin-bottom: 8px;
+    }
+
+    .stat-value {
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: #FFFFFF !important;
+        font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* 8. Priority Badges */
+    .badge-pill {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .badge-high {
+        background: rgba(239, 68, 68, 0.18) !important;
+        color: #FCA5A5 !important;
+        border: 1px solid rgba(239, 68, 68, 0.45) !important;
+    }
+
+    .badge-medium {
+        background: rgba(245, 158, 11, 0.18) !important;
+        color: #FDE68A !important;
+        border: 1px solid rgba(245, 158, 11, 0.45) !important;
+    }
+
+    .badge-low {
+        background: rgba(16, 185, 129, 0.18) !important;
+        color: #A7F3D0 !important;
+        border: 1px solid rgba(16, 185, 129, 0.45) !important;
+    }
+
+    .badge-review {
+        background: rgba(236, 72, 153, 0.18) !important;
+        color: #FBCFE8 !important;
+        border: 1px solid rgba(236, 72, 153, 0.45) !important;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    /* 9. Top Navigation Bar */
+    .top-nav {
+        background: #111827;
+        border: 1px solid #1E293B;
+        border-radius: 10px;
+        padding: 14px 22px;
+        margin-bottom: 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .nav-brand {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #FFFFFF !important;
+        letter-spacing: -0.02em;
+    }
+
+    .nav-user {
+        background: #1E293B;
+        border: 1px solid #334155;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.84rem;
+        color: #E2E8F0 !important;
+    }
+
+    .guide-box {
+        background: #111827;
+        border-left: 4px solid #3B82F6;
+        border-top: 1px solid #1E293B;
+        border-right: 1px solid #1E293B;
+        border-bottom: 1px solid #1E293B;
+        padding: 14px 18px;
+        border-radius: 6px;
+        margin-bottom: 18px;
+        color: #CBD5E1 !important;
+        font-size: 0.9rem;
+    }
+
+    /* Tables */
+    table {
+        color: #FFFFFF !important;
+        background-color: #111827 !important;
+        border: 1px solid #1E293B !important;
+        border-radius: 8px !important;
+    }
+
+    th {
+        color: #FFFFFF !important;
+        background-color: #1E293B !important;
+        font-weight: 700 !important;
+        border-bottom: 2px solid #334155 !important;
+    }
+
+    td {
+        color: #CBD5E1 !important;
+        border-bottom: 1px solid #1E293B !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ── Session State Management ─────────────────────────────────────────────────
+if "auth_user" not in st.session_state:
+    st.session_state["auth_user"] = None
+if "auth_token" not in st.session_state:
+    st.session_state["auth_token"] = None
+if "portal_choice" not in st.session_state:
+    st.session_state["portal_choice"] = None  # None, 'customer', or 'agent'
+if "auth_mode" not in st.session_state:
+    st.session_state["auth_mode"] = "login"  # 'login' or 'register'
 
 
-def generate_ticket_id() -> str:
-    today = datetime.now().strftime("%Y%m%d")
-    if st.session_state.ticket_id_date != today:
-        st.session_state.ticket_id_date = today
-        st.session_state.ticket_id_seq = 0
-    st.session_state.ticket_id_seq += 1
-    return f"PT-{today}-{st.session_state.ticket_id_seq:03d}"
+# ── Helper Functions ─────────────────────────────────────────────────────────
+def get_auth_headers():
+    headers = {"Content-Type": "application/json"}
+    if st.session_state.get("auth_token"):
+        headers["Authorization"] = f"Bearer {st.session_state['auth_token']}"
+    return headers
 
 
-def parse_time_24h(value: str) -> time | None:
-    value = value.strip()
-    if re.fullmatch(r"\d{1,2}:\d{2}", value):
-        try:
-            parsed = datetime.strptime(value, "%H:%M")
-            if parsed.hour > 23 or parsed.minute > 59:
-                return None
-            return parsed.time()
-        except ValueError:
-            return None
-    return None
-
-
-def normalize_time_24h(value: str) -> str | None:
-    parsed = parse_time_24h(value)
-    return parsed.strftime("%H:%M") if parsed else None
-
-
-def format_time_24h(t: time) -> str:
-    return t.strftime("%H:%M")
-
-
-def priority_badge(priority: str) -> str:
-    s = PRIORITY_STYLES.get(priority, {"bg": "#F1F5F9", "text": "#64748B", "border": "#E2E8F0"})
-    return (
-        f'<span class="badge" style="background:{s["bg"]};color:{s["text"]};'
-        f'border:1px solid {s["border"]};">'
-        f'<span class="badge-dot" style="background:{s["text"]};"></span>{priority}</span>'
-    )
-
-
-def rcard(label: str, value: str, anim: str = "") -> str:
-    return f'<div class="rc {anim}"><div class="rc-label">{label}</div><div class="rc-val">{value}</div></div>'
-
-
-def kpi_html(icon: str, label: str, val: int, accent: str, anim: str) -> str:
-    return (
-        f'<div class="kpi {anim}" style="--accent:{accent};">'
-        f'<div class="kpi-icon">{icon}</div>'
-        f'<div class="kpi-val">{val}</div>'
-        f'<div class="kpi-label">{label}</div></div>'
-    )
-
-
-def build_payload(
-    title: str,
-    description: str,
-    has_deadline: bool,
-    dl_date: date | None,
-    dl_time_str: str | None,
-) -> str:
-    text = f"{title.strip()}. {description.strip()}"
-    if has_deadline and dl_date:
-        ds = dl_date.strftime("%Y-%m-%d")
-        if dl_time_str:
-            text = f"{text} Need this resolved before {ds} {dl_time_str}."
-        else:
-            text = f"{text} Need this resolved before {ds}."
-    return text
-
-
-def call_api(ticket: str) -> tuple[dict[str, Any] | None, str | None]:
+def api_request(url, method="GET", payload=None):
     try:
-        resp = requests.post(
-            API_URL,
-            json={"ticket": ticket},
-            headers={"Content-Type": "application/json"},
-            timeout=REQUEST_TIMEOUT,
-        )
-    except requests.exceptions.ConnectionError as e:
-        return None, f"**Backend not reachable.** Run `python app.py` first.\n\n`{e}`"
-    except requests.exceptions.Timeout as e:
-        return None, f"**Request timeout** ({REQUEST_TIMEOUT}s).\n\n`{e}`"
-    except requests.exceptions.RequestException as e:
-        return None, f"**Request failed.**\n\n`{e}`"
+        headers = get_auth_headers()
+        if method == "GET":
+            res = requests.get(url, headers=headers, timeout=10)
+        elif method == "POST":
+            res = requests.post(url, json=payload, headers=headers, timeout=10)
+        elif method == "PATCH":
+            res = requests.patch(url, json=payload, headers=headers, timeout=10)
+        elif method == "DELETE":
+            res = requests.delete(url, headers=headers, timeout=10)
 
-    code = resp.status_code
-    if not resp.text or not resp.text.strip():
-        return None, f"**Empty response.** Status: `{code}`"
-
-    try:
-        data = resp.json()
-    except requests.exceptions.JSONDecodeError as e:
-        return None, f"**Invalid JSON.** Status: `{code}`\n\n`{e}`"
-
-    if not isinstance(data, dict):
-        return None, f"**Unexpected format.** Status: `{code}`"
-
-    if code >= 400:
-        return None, f"**API error.** Status: `{code}`\n\n`{data.get('error', resp.text)}`"
-
-    missing = [f for f in ("priority", "category", "department") if f not in data]
-    if missing:
-        return None, f"**Incomplete response.** Status: `{code}`. Missing: `{missing}`"
-
-    data["_status_code"] = code
-    return data, None
+        if res.status_code in [200, 201]:
+            return res.json()
+        error_msg = res.json().get("error", f"HTTP {res.status_code}") if res.text else f"HTTP {res.status_code}"
+        return {"error": error_msg}
+    except Exception as e:
+        return {"error": f"API Connection Failure: {str(e)}"}
 
 
-def kpi_stats() -> dict[str, int]:
-    h = st.session_state.ticket_history
-    return {
-        "total": len(h),
-        "open": sum(1 for t in h if t["Status"] == "Open"),
-        "high": sum(1 for t in h if t["Priority"] == "High"),
-        "resolved": sum(1 for t in h if t["Status"] == "Resolved"),
-    }
+def priority_badge_html(priority: str) -> str:
+    p_lower = str(priority).lower()
+    if p_lower == "high":
+        return '<span class="badge-pill badge-high">HIGH</span>'
+    elif p_lower == "medium":
+        return '<span class="badge-pill badge-medium">MEDIUM</span>'
+    return '<span class="badge-pill badge-low">LOW</span>'
 
 
-def initials(name: str) -> str:
-    return "".join(w[0] for w in name.split()[:2]).upper()
+# ─────────────────────────────────────────────────────────────────────────────
+# VIEW 1: PORTAL SELECTION (LANDING SCREEN)
+# ─────────────────────────────────────────────────────────────────────────────
+if not st.session_state["auth_user"] and not st.session_state["portal_choice"]:
+    st.markdown('<div class="top-pill">NEXUS AI • SERVICE INTELLIGENCE</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-title">IT Service Management & Ticket Triage</div>', unsafe_allow_html=True)
+    st.markdown('<div class="hero-subtitle">Automated Multi-Target Machine Learning, NLP Deadline Parsing, and Workqueue Orchestration</div>', unsafe_allow_html=True)
 
+    col1, col2 = st.columns(2, gap="large")
 
-# ── Layout ────────────────────────────────────────────────────────────────────
-def sidebar() -> None:
-    st.markdown(
-        f"""
-        <div class="pt-logo">
-            <div class="pt-logo-mark">P</div>
-            <div>
-                <div class="pt-logo-name">ProvenTech</div>
-                <div class="pt-logo-sub">AI Ticket Portal</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if st.sidebar.button("◀  Close Menu", key="close_sidebar", use_container_width=True):
-        st.session_state.sidebar_open = False
-        st.rerun()
-
-    st.markdown("---")
-    for name, icon in NAV_ITEMS:
-        active = st.session_state.page == name
-        if st.sidebar.button(
-            f"{icon}  {name}",
-            key=f"nav_{name}",
-            use_container_width=True,
-            type="primary" if active else "secondary",
-        ):
-            st.session_state.page = "Logout" if name == "Logout" else name
-            st.session_state.logged_in = name != "Logout"
-            st.rerun()
-
-
-def render_theme_control() -> None:
-    """Compact dark/light mode switch — icons + toggle only."""
-    is_dark = st.session_state.dark_mode
-
-    st.markdown('<p class="theme-control-label">Theme</p>', unsafe_allow_html=True)
-
-    row = st.columns([0.28, 0.44, 0.28], gap="small")
-    with row[0]:
-        st.markdown('<div class="theme-icon-wrap">☀️</div>', unsafe_allow_html=True)
-    with row[1]:
-        toggled = st.toggle(
-            "Dark mode",
-            value=is_dark,
-            key="theme_toggle",
-            label_visibility="collapsed",
-        )
-    with row[2]:
-        st.markdown('<div class="theme-icon-wrap">🌙</div>', unsafe_allow_html=True)
-
-    status = "Dark mode" if toggled else "Light mode"
-    st.markdown(f'<p class="theme-status">{status}</p>', unsafe_allow_html=True)
-
-    if toggled != st.session_state.dark_mode:
-        st.session_state.dark_mode = toggled
-        st.rerun()
-
-
-def render_menu_toggle() -> None:
-    """Show open-sidebar button when sidebar is collapsed."""
-    if not st.session_state.sidebar_open:
-        if st.button("☰", key="open_sidebar", help="Open sidebar menu"):
-            st.session_state.sidebar_open = True
-            st.rerun()
-
-
-def _render_header_inner() -> None:
-    ini = initials(USER["name"])
-    t = theme_palette(st.session_state.dark_mode)
-
-    st.markdown('<div class="pt-header-block">', unsafe_allow_html=True)
-    col_welcome, col_theme, col_profile = st.columns([0.46, 0.28, 0.26], gap="medium")
-
-    with col_welcome:
+    with col1:
         st.markdown(
-            f"<h1 style='margin:0;font-size:1.35rem;font-weight:800;color:{t['text']};'>"
-            f"Welcome back, {USER['first']} 👋</h1>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"<p style='margin:0.3rem 0 0;font-size:0.88rem;color:{t['muted']};'>"
-            f"Manage and track AI-powered support tickets across ProvenTech</p>",
-            unsafe_allow_html=True,
-        )
-
-    with col_theme:
-        with st.container(border=True):
-            render_theme_control()
-
-    with col_profile:
-        st.markdown(
-            f"""
-            <div class="profile-chip fade-in">
-                <div class="avatar" title="{USER['name']}">{ini}</div>
+            """
+            <div class="portal-box">
                 <div>
-                    <div class="name">{USER['name']}</div>
-                    <div class="role">{USER['role']}</div>
+                    <div class="portal-badge">CUSTOMER ACCESS</div>
+                    <div class="portal-heading">Customer Support Portal</div>
+                    <div class="portal-text">
+                        Submit IT service requests, receive instant AI priority and routing classifications,
+                        track dynamic SLA resolution targets, and communicate with engineers.
+                    </div>
+                    <ul class="portal-features">
+                        <li>Real-time Priority & Department classification</li>
+                        <li>Automated SLA deadline calculation</li>
+                        <li>Ticket status history & engineer replies</li>
+                    </ul>
                 </div>
             </div>
             """,
             unsafe_allow_html=True,
         )
-
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-def header_bar() -> None:
-    if not st.session_state.sidebar_open:
-        menu_col, main_col = st.columns([0.045, 0.955], gap="small")
-        with menu_col:
-            render_menu_toggle()
-        with main_col:
-            _render_header_inner()
-    else:
-        _render_header_inner()
-
-
-def footer() -> None:
-    st.markdown(
-        '<p class="pt-footer">Built for ProvenTech • AI-Powered Ticket Workflow Management</p>',
-        unsafe_allow_html=True,
-    )
-
-
-def page_header(title: str, subtitle: str = "") -> None:
-    st.markdown(f'<p class="page-title">{title}</p>', unsafe_allow_html=True)
-    if subtitle:
-        st.markdown(f'<p class="page-sub">{subtitle}</p>', unsafe_allow_html=True)
-
-
-# ── Pages ─────────────────────────────────────────────────────────────────────
-def page_dashboard() -> None:
-    page_header("Dashboard", "Overview of your support ticket activity.")
-    s = kpi_stats()
-    c1, c2, c3, c4 = st.columns(4, gap="medium")
-    cards = [
-        ("🟨", "Total Tickets", s["total"], KPI_ACCENTS["total"], "kpi-1"),
-        ("🟦", "Open Tickets", s["open"], KPI_ACCENTS["open"], "kpi-2"),
-        ("🔴", "High Priority", s["high"], KPI_ACCENTS["high"], "kpi-3"),
-        ("🟢", "Resolved Tickets", s["resolved"], KPI_ACCENTS["resolved"], "kpi-4"),
-    ]
-    for col, (icon, label, val, accent, anim) in zip([c1, c2, c3, c4], cards):
-        with col:
-            st.markdown(kpi_html(icon, label, val, accent, anim), unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    a1, a2 = st.columns(2, gap="medium")
-    with a1:
-        if st.button("➕  Raise New Ticket", use_container_width=True):
-            st.session_state.page = "Raise Ticket"
-            st.rerun()
-    with a2:
-        if st.button("📋  View Ticket History", use_container_width=True):
-            st.session_state.page = "Ticket History"
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        if st.button("Enter Customer Portal →", type="primary", use_container_width=True):
+            st.session_state["portal_choice"] = "customer"
+            st.session_state["auth_mode"] = "login"
             st.rerun()
 
-    if st.session_state.ticket_history:
-        st.markdown('<p class="section-title" style="margin-top:1.5rem;">Recent Tickets</p>', unsafe_allow_html=True)
-        df = pd.DataFrame(st.session_state.ticket_history).iloc[::-1].head(5)
-        st.dataframe(df, use_container_width=True, hide_index=True)
+    with col2:
+        st.markdown(
+            """
+            <div class="portal-box">
+                <div>
+                    <div class="portal-badge">ENGINEERING & OPERATIONS</div>
+                    <div class="portal-heading">Support Agent & Admin Console</div>
+                    <div class="portal-text">
+                        Triage active support workqueues, review low-confidence classifications,
+                        execute policy-backed priority overrides, and inspect model telemetry.
+                    </div>
+                    <ul class="portal-features">
+                        <li>Live triage workqueue with multi-parameter filters</li>
+                        <li>Human-in-the-loop overrides with mandatory audit logging</li>
+                        <li>5-Fold cross-validation model benchmark telemetry</li>
+                    </ul>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        if st.button("Enter Operations Console →", type="primary", use_container_width=True):
+            st.session_state["portal_choice"] = "agent"
+            st.session_state["auth_mode"] = "login"
+            st.rerun()
+
+    st.markdown("<hr style='border-color: #1E293B; margin: 40px 0 20px 0;'>", unsafe_allow_html=True)
+    st.caption("Backend Service: http://127.0.0.1:5000 | Core Status: Healthy | Authentication: Stateless Bearer JWT")
+    st.stop()
 
 
-def page_raise_ticket() -> None:
-    st.markdown(
-        """
-        <div class="fade-in raise-form-wrap">
-            <p class="section-title">Raise New Ticket</p>
-            <p class="section-sub">Submit your issue and let ProvenTech AI classify it instantly.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+# ─────────────────────────────────────────────────────────────────────────────
+# VIEW 2: AUTHENTICATION (LOGIN & REGISTRATION SCREEN)
+# ─────────────────────────────────────────────────────────────────────────────
+if not st.session_state["auth_user"] and st.session_state["portal_choice"]:
+    target_portal = st.session_state["portal_choice"]
+    portal_name = "Customer Support Portal" if target_portal == "customer" else "Support Agent & Admin Console"
+    badge_label = "CUSTOMER AUTHENTICATION" if target_portal == "customer" else "ENGINEERING AUTHENTICATION"
 
-    title = st.text_input("Ticket Title", placeholder="Login Access Issue", key="ticket_title")
-    description = st.text_area(
-        "Ticket Description",
-        placeholder="Describe your issue in detail…",
-        height=220,
-        key="ticket_description",
-    )
+    col_l, col_center, col_r = st.columns([1, 2, 1])
 
-    st.markdown('<p class="section-label fade-in">Deadline (Optional)</p>', unsafe_allow_html=True)
+    with col_center:
+        st.markdown(f'<div class="top-pill">{badge_label}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="hero-title" style="font-size: 1.75rem !important;">{portal_name}</div>', unsafe_allow_html=True)
+        st.caption("Please provide authorized credentials to proceed.")
+        st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
-    with st.container(border=True):
-        dc1, dc2 = st.columns(2, gap="medium")
-        with dc1:
-            st.markdown('<p class="field-label">📅 Deadline Date</p>', unsafe_allow_html=True)
-            dl_date = st.date_input(
-                "Select Date",
-                value=None,
-                min_value=date.today(),
-                label_visibility="collapsed",
-                key="deadline_date",
-            )
-        with dc2:
-            st.markdown('<p class="field-label">🕒 Deadline Time (24h)</p>', unsafe_allow_html=True)
-            dl_time_str = st.text_input(
-                "Select Time",
-                placeholder="14:30",
-                help="24-hour format only — e.g. 09:00, 14:30, 18:00. Leave blank if not needed.",
-                label_visibility="collapsed",
-                key="deadline_time",
-            )
+        if st.session_state["auth_mode"] == "login":
+            st.markdown("##### Account Sign In")
+            default_user = "user1" if target_portal == "customer" else "admin"
+            default_pass = "user123" if target_portal == "customer" else "admin123"
 
-    submitted = st.button("Submit Ticket", use_container_width=True, type="primary", key="submit_ticket")
+            uname = st.text_input("Username", value=default_user)
+            pword = st.text_input("Password", type="password", value=default_pass)
 
-    if submitted:
-        st.session_state.latest_prediction = None
-        st.session_state.prediction_error = None
-        st.session_state.show_success = False
+            col_btn1, col_btn2 = st.columns([2, 1])
+            with col_btn1:
+                if st.button("Sign In →", type="primary", use_container_width=True):
+                    res = api_request(API_AUTH_LOGIN, "POST", {"username": uname, "password": pword})
+                    if "user" in res:
+                        user_obj = res["user"]
+                        if target_portal == "agent" and user_obj["role"] not in ["agent", "admin"]:
+                            st.error("Access Denied: This account does not possess Support Agent or Administrator privileges.")
+                        else:
+                            st.session_state["auth_user"] = user_obj
+                            st.session_state["auth_token"] = res.get("token")
+                            st.success("Authenticated successfully.")
+                            st.rerun()
+                    else:
+                        st.error(res.get("error", "Invalid username or password."))
 
-        has_deadline = dl_date is not None or bool(dl_time_str and dl_time_str.strip())
+            with col_btn2:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state["portal_choice"] = None
+                    st.rerun()
 
-        if not title or not title.strip():
-            st.warning("Please enter ticket title")
-        elif not description or not description.strip():
-            st.warning("Please enter ticket description")
-        elif has_deadline and dl_time_str and dl_time_str.strip() and not normalize_time_24h(dl_time_str):
-            st.warning("Please enter time in 24-hour format (e.g. 14:30)")
+            st.markdown("<hr style='border-color: #1E293B; margin: 24px 0 16px 0;'>", unsafe_allow_html=True)
+            if st.button("New user? Create an account", use_container_width=True):
+                st.session_state["auth_mode"] = "register"
+                st.rerun()
+
         else:
-            deadline_date = dl_date if dl_date is not None else (date.today() if has_deadline and dl_time_str else None)
-            time_for_payload = normalize_time_24h(dl_time_str) if dl_time_str and dl_time_str.strip() else None
-            payload = build_payload(title, description, has_deadline, deadline_date, time_for_payload)
+            st.markdown("##### Account Registration")
+            new_uname = st.text_input("Choose Username")
+            new_email = st.text_input("Work Email Address")
+            new_pword = st.text_input("Create Password", type="password")
+            role_assigned = "customer" if target_portal == "customer" else "agent"
+            st.caption(f"Assigned Access Tier: **{role_assigned.upper()}**")
 
-            with st.spinner("Analyzing ticket..."):
-                result, err = call_api(payload)
+            col_r1, col_r2 = st.columns([2, 1])
+            with col_r1:
+                if st.button("Register & Sign In →", type="primary", use_container_width=True):
+                    if not new_uname or not new_email or not new_pword:
+                        st.error("All registration fields are required.")
+                    else:
+                        reg_res = api_request(API_AUTH_REGISTER, "POST", {
+                            "username": new_uname,
+                            "email": new_email,
+                            "password": new_pword,
+                            "role": role_assigned,
+                        })
+                        if "user" in reg_res:
+                            st.session_state["auth_user"] = reg_res["user"]
+                            st.session_state["auth_token"] = reg_res.get("token")
+                            st.success("Account provisioned and authenticated!")
+                            st.rerun()
+                        else:
+                            st.error(reg_res.get("error", "Registration rejected by server."))
 
-            if err:
-                st.session_state.prediction_error = err
-            elif result:
-                tid = generate_ticket_id()
-                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                st.session_state.last_active = datetime.now().strftime("%Y-%m-%d %H:%M")
+            with col_r2:
+                if st.button("Back to Login", use_container_width=True):
+                    st.session_state["auth_mode"] = "login"
+                    st.rerun()
 
-                deadline_val = result.get("deadline_detected")
-                if not deadline_val and has_deadline and deadline_date:
-                    deadline_val = f"{deadline_date.strftime('%Y-%m-%d')} {time_for_payload or ''}".strip()
-
-                record = {
-                    "Ticket ID": tid,
-                    "Title": title.strip(),
-                    "Description": description.strip()[:80] + ("…" if len(description.strip()) > 80 else ""),
-                    "Priority": result["priority"],
-                    "Category": result["category"],
-                    "Department": result["department"],
-                    "Deadline": deadline_val or "—",
-                    "Status": "Open",
-                    "Created Date": ts,
-                }
-                st.session_state.ticket_history.append(record)
-                st.session_state.latest_prediction = {
-                    **result,
-                    "ticket_id": tid,
-                    "created_at": ts,
-                    "deadline_display": deadline_val or "Not detected",
-                }
-                st.session_state.show_success = True
-
-    if st.session_state.prediction_error:
-        st.error(st.session_state.prediction_error)
-
-    if st.session_state.show_success and st.session_state.latest_prediction:
-        st.success("Prediction generated successfully")
-        _render_results(st.session_state.latest_prediction)
+    st.stop()
 
 
-def _render_results(p: dict[str, Any]) -> None:
-    st.markdown('<p class="section-title" style="margin-top:1.75rem;">Prediction Results</p>', unsafe_allow_html=True)
+# ─────────────────────────────────────────────────────────────────────────────
+# VIEW 3: AUTHENTICATED PORTALS (CUSTOMER vs AGENT/ADMIN)
+# ─────────────────────────────────────────────────────────────────────────────
+user = st.session_state["auth_user"]
 
-    priority = str(p.get("priority", "—"))
-    deadline = p.get("deadline_display", "Not detected")
-    dl_html = (
-        f'<span style="color:{NAVY};">{deadline}</span>'
-        if deadline != "Not detected"
-        else '<span style="color:#94A3B8;">Not detected</span>'
-    )
+# Top Navigation Bar
+nav_c1, nav_c2, nav_c3 = st.columns([3, 1.2, 0.8])
+with nav_c1:
+    st.markdown('<div class="hero-title" style="font-size: 1.45rem !important; margin-bottom: 2px !important;">NEXUS AI // Service Management</div>', unsafe_allow_html=True)
+    st.caption("Active Operational Session • Connected to SQLite (WAL) Backend")
 
-    r1 = st.columns(3)
-    fields_r1 = [
-        ("Ticket ID", p.get("ticket_id", "—"), "result-1"),
-        ("Priority", priority_badge(priority), "result-2"),
-        ("Category", str(p.get("category", "—")), "result-3"),
-    ]
-    for col, (label, val, anim) in zip(r1, fields_r1):
-        with col:
-            st.markdown(rcard(label, val, anim), unsafe_allow_html=True)
+with nav_c2:
+    st.markdown(f'<div class="stat-card" style="padding: 10px 14px;"><small style="color:#94A3B8;">AUTHENTICATED USER</small><br><strong style="color:#FFFFFF;">{user["username"]}</strong> &nbsp;<span style="color:#38BDF8;">[{user["role"].upper()}]</span></div>', unsafe_allow_html=True)
 
-    r2 = st.columns(3)
-    fields_r2 = [
-        ("Department", str(p.get("department", "—")), "result-1"),
-        ("Deadline", dl_html, "result-2"),
-        ("Created Timestamp", p.get("created_at", "—"), "result-3"),
-    ]
-    for col, (label, val, anim) in zip(r2, fields_r2):
-        with col:
-            st.markdown(rcard(label, val, anim), unsafe_allow_html=True)
-
-
-def page_history() -> None:
-    page_header("Ticket History", "All tickets submitted through the portal.")
-
-    if not st.session_state.ticket_history:
-        st.markdown(
-            """
-            <div class="empty-state">
-                <div class="icon">📭</div>
-                <h3>No tickets submitted yet</h3>
-                <p>Once tickets are raised, they'll appear here.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        return
-
-    df = pd.DataFrame(st.session_state.ticket_history).iloc[::-1]
-    st.dataframe(df, use_container_width=True, hide_index=True)
-
-
-def page_insights() -> None:
-    page_header("AI Insights", "Analytics powered by your ticket data.")
-
-    if not st.session_state.ticket_history:
-        st.markdown(
-            """
-            <div class="empty-state">
-                <div class="icon">📊</div>
-                <h3>No data available yet</h3>
-                <p>Submit tickets to unlock AI insights and trends.</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        return
-
-    df = pd.DataFrame(st.session_state.ticket_history)
-
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.metric("Top Priority", df["Priority"].value_counts().idxmax())
-    with m2:
-        st.metric("Top Category", df["Category"].value_counts().idxmax())
-    with m3:
-        st.metric("Top Department", df["Department"].value_counts().idxmax())
-
-    st.markdown('<p class="section-title" style="margin-top:1rem;">Priority Distribution</p>', unsafe_allow_html=True)
-    p1, p2 = st.columns(2)
-    with p1:
-        st.bar_chart(df["Priority"].value_counts(), color=YELLOW)
-    with p2:
-        st.altair_chart(_pie_chart(df["Priority"].value_counts(), "Priority"), use_container_width=True)
-
-    st.markdown('<p class="section-title">Category Distribution</p>', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    with c1:
-        st.bar_chart(df["Category"].value_counts(), color=NAVY)
-    with c2:
-        st.altair_chart(_pie_chart(df["Category"].value_counts(), "Category"), use_container_width=True)
-
-    st.markdown('<p class="section-title">Department Distribution</p>', unsafe_allow_html=True)
-    d1, d2 = st.columns(2)
-    with d1:
-        st.bar_chart(df["Department"].value_counts(), color="#38BDF8")
-    with d2:
-        st.altair_chart(_pie_chart(df["Department"].value_counts(), "Department"), use_container_width=True)
-
-    st.markdown('<p class="section-title">Ticket Volume Trend</p>', unsafe_allow_html=True)
-    st.altair_chart(_trend_chart(df), use_container_width=True)
-
-
-def _pie_chart(series: pd.Series, title: str):
-    import altair as alt
-
-    chart_df = series.reset_index()
-    chart_df.columns = ["label", "count"]
-    palette = [NAVY, YELLOW, "#38BDF8", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"]
-    return (
-        alt.Chart(chart_df)
-        .mark_arc(innerRadius=50, outerRadius=95)
-        .encode(
-            theta=alt.Theta("count:Q"),
-            color=alt.Color("label:N", scale=alt.Scale(range=palette[: len(chart_df)]), legend=alt.Legend(title="")),
-            tooltip=["label", "count"],
-        )
-        .properties(title=title, height=280)
-        .configure_title(color=NAVY, fontSize=13, fontWeight="bold")
-    )
-
-
-def _trend_chart(df: pd.DataFrame):
-    import altair as alt
-
-    trend = df.copy()
-    trend["date"] = pd.to_datetime(trend["Created Date"]).dt.date
-    daily = trend.groupby("date").size().reset_index(name="tickets")
-    daily["date"] = pd.to_datetime(daily["date"])
-
-    return (
-        alt.Chart(daily)
-        .mark_line(point=True, color=NAVY, strokeWidth=2.5)
-        .encode(
-            x=alt.X("date:T", title="Date"),
-            y=alt.Y("tickets:Q", title="Tickets Submitted"),
-            tooltip=["date:T", "tickets:Q"],
-        )
-        .properties(height=300)
-        .configure_axis(labelColor=TEXT, titleColor=NAVY)
-    )
-
-
-def page_profile() -> None:
-    page_header("Profile")
-    ini = initials(USER["name"])
-    st.markdown(
-        f"""
-        <div class="profile-card">
-            <div class="avatar-lg">{ini}</div>
-            <p class="pname">{USER['name']}</p>
-            <p class="prole">{USER['role']}</p>
-            <div class="profile-row"><span class="plabel">Email</span><span class="pval">{USER['email']}</span></div>
-            <div class="profile-row"><span class="plabel">Department</span><span class="pval">{USER['department']}</span></div>
-            <div class="profile-row"><span class="plabel">Tickets Raised</span><span class="pval">{len(st.session_state.ticket_history)}</span></div>
-            <div class="profile-row"><span class="plabel">Last Active</span><span class="pval">{st.session_state.last_active}</span></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def page_logout() -> None:
-    if not st.session_state.sidebar_open:
-        render_menu_toggle()
-        st.markdown("<br>", unsafe_allow_html=True)
-
-    _, theme_col = st.columns([0.70, 0.30])
-    with theme_col:
-        with st.container(border=True):
-            render_theme_control()
-
-    st.markdown(
-        f"""
-        <div class="empty-state fade-in">
-            <div class="icon">👋</div>
-            <h3>Logged out</h3>
-            <p>You have been signed out of the ProvenTech AI Ticket Portal.</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    if st.button("Log back in", type="primary"):
-        st.session_state.logged_in = True
-        st.session_state.page = "Dashboard"
+with nav_c3:
+    if st.button("Sign Out", use_container_width=True):
+        st.session_state["auth_user"] = None
+        st.session_state["auth_token"] = None
+        st.session_state["portal_choice"] = None
         st.rerun()
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
-def main() -> None:
-    st.set_page_config(
-        page_title="ProvenTech AI Ticket Portal",
-        page_icon="🎫",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-    init_state()
-    inject_styles(
-        sidebar_open=st.session_state.sidebar_open,
-        dark_mode=st.session_state.dark_mode,
-    )
-
-    with st.sidebar:
-        if st.session_state.sidebar_open:
-            sidebar()
-
-    if st.session_state.page == "Logout" or not st.session_state.logged_in:
-        page_logout()
-        footer()
-        return
-
-    header_bar()
-
-    routes = {
-        "Dashboard": page_dashboard,
-        "Raise Ticket": page_raise_ticket,
-        "Ticket History": page_history,
-        "AI Insights": page_insights,
-        "Profile": page_profile,
-    }
-    routes.get(st.session_state.page, page_dashboard)()
-    footer()
+st.markdown("<hr style='border-color: #1E293B; margin: 18px 0 24px 0;'>", unsafe_allow_html=True)
 
 
-if __name__ == "__main__":
-    main()
+# =============================================================================
+# A. CUSTOMER PORTAL INTERFACE
+# =============================================================================
+if user["role"] == "customer":
+    cust_tabs = st.tabs(["Submit Support Request", "My Active Tickets"])
+
+    # ── TAB 1: SUBMIT TICKET ─────────────────────────────────────────────────
+    with cust_tabs[0]:
+        st.subheader("Submit Technical Incident")
+        st.caption("Enter complete details regarding your issue. Natural Language Processing models will classify urgency and route to the appropriate department.")
+
+        issue_text = st.text_area(
+            "Incident Description",
+            placeholder="Describe the incident, error output, and affected environment. Example: Production PostgreSQL database server unreachable, site down ASAP!",
+            height=140,
+        )
+
+        c_act1, c_act2 = st.columns([2, 1])
+
+        with c_act1:
+            if st.button("Submit Support Request →", type="primary", use_container_width=True):
+                if not issue_text.strip():
+                    st.error("Please enter an issue description.")
+                else:
+                    with st.spinner("Analyzing semantic features and calculating SLA target..."):
+                        t_payload = {
+                            "ticket": issue_text,
+                            "save": True,
+                            "user_id": user["id"],
+                        }
+                        res = api_request(API_PREDICT, "POST", t_payload)
+
+                        if "priority" in res:
+                            st.success(f"Ticket #{res.get('id', 'N/A')} created and queued for resolution.")
+
+                            m1, m2, m3, m4 = st.columns(4)
+                            with m1:
+                                st.markdown('<div class="stat-card"><div class="stat-label">Predicted Priority</div><div class="stat-value">' + res["priority"] + '</div></div>', unsafe_allow_html=True)
+                            with m2:
+                                st.markdown('<div class="stat-card"><div class="stat-label">Category</div><div class="stat-value" style="font-size:1.15rem;">' + res["category"] + '</div></div>', unsafe_allow_html=True)
+                            with m3:
+                                st.markdown('<div class="stat-card"><div class="stat-label">Target Department</div><div class="stat-value" style="font-size:1.15rem;">' + res["department"] + '</div></div>', unsafe_allow_html=True)
+                            with m4:
+                                conf_str = f"{res['confidence']:.1%}" if res.get("confidence") else "N/A"
+                                st.markdown('<div class="stat-card"><div class="stat-label">Model Confidence</div><div class="stat-value">' + conf_str + '</div></div>', unsafe_allow_html=True)
+
+                            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+                            st.info(f"Target SLA Resolution: **{res.get('sla_deadline', 'N/A')}** | Detected Urgency Phrase: **{res.get('deadline_detected') or 'Standard SLA Policy'}**")
+                        else:
+                            st.error(res.get("error", "Ticket creation failed."))
+
+        with c_act2:
+            st.markdown("##### Fast Incident Presets")
+            if st.button("Production DB Outage (High)", use_container_width=True):
+                st.session_state["preset"] = "Production PostgreSQL database server unreachable, site down ASAP!"
+            if st.button("Network Latency Degradation (Medium)", use_container_width=True):
+                st.session_state["preset"] = "Intermittent network latency affecting backend microservices."
+            if st.button("Repository Access Request (Low)", use_container_width=True):
+                st.session_state["preset"] = "Need access to internal documentation repository on GitHub before Friday."
+
+    # ── TAB 2: MY TICKETS ────────────────────────────────────────────────────
+    with cust_tabs[1]:
+        st.subheader("My Registered Tickets")
+        st.caption(f"Showing support requests filed by user account: **{user['username']}**")
+
+        my_res = api_request(f"{API_TICKETS}?user_id={user['id']}")
+        ticket_items = my_res.get("tickets", [])
+
+        if not ticket_items:
+            st.info("No active tickets found for your account.")
+        else:
+            for item in ticket_items:
+                badge = priority_badge_html(item["priority"])
+                with st.expander(f"Ticket #{item['id']} — [{item['priority'].upper()}] {item['ticket'][:65]}..."):
+                    st.markdown(f"**Priority:** {badge} &nbsp;|&nbsp; **Status:** `{item['status']}` &nbsp;|&nbsp; **Category:** `{item['category']}` &nbsp;|&nbsp; **Department:** `{item['department']}`", unsafe_allow_html=True)
+                    st.write(f"**Full Description:** {item['ticket']}")
+                    st.write(f"**Created At:** {item['created_at']} &nbsp;|&nbsp; **SLA Target:** {item.get('sla_deadline', 'N/A')} &nbsp;|&nbsp; **Assigned Agent:** {item.get('assigned_agent', 'Unassigned')}")
+
+                    detail = api_request(f"{API_TICKETS}/{item['id']}")
+                    replies_list = detail.get("replies", [])
+                    if replies_list:
+                        st.markdown("---")
+                        st.markdown("**Conversation Thread:**")
+                        for r in replies_list:
+                            st.caption(f"[{r['created_at']}] **{r['author_name']}**: {r['message']}")
+
+                    new_msg = st.text_input("Send reply to support engineers", key=f"cust_msg_{item['id']}")
+                    if st.button("Post Reply", key=f"cust_btn_{item['id']}"):
+                        if new_msg.strip():
+                            api_request(f"{API_TICKETS}/{item['id']}/replies", "POST", {
+                                "message": new_msg,
+                                "author_name": user["username"],
+                            })
+                            st.success("Reply recorded.")
+                            st.rerun()
+
+
+# =============================================================================
+# B. SUPPORT AGENT & ADMIN OPERATIONS CONSOLE
+# =============================================================================
+else:
+    agent_tabs = st.tabs(["Triage Workqueue", "Operational Telemetry", "Model Intelligence", "System Data Export"])
+
+    # ── TAB 1: TRIAGE WORKQUEUE ──────────────────────────────────────────────
+    with agent_tabs[0]:
+        st.subheader("Live Triage Workqueue")
+        st.markdown(
+            """
+            <div class="guide-box">
+                <strong>What this view does:</strong> This is the daily workspace for support engineers. Incoming tickets are automatically classified by priority, category, and department. Engineers can reassign tickets, update lifecycle statuses, or manually override the AI priority when operational business context requires it.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        agents_data = api_request(API_AGENTS)
+        active_agents = agents_data.get("agents", ["admin", "agent_sarah"])
+
+        # Filters
+        f1, f2, f3, f4 = st.columns(4)
+        filter_status = f1.selectbox("Filter Status", ["All", "Open", "In Progress", "Resolved", "Closed"])
+        filter_priority = f2.selectbox("Filter Priority", ["All", "High", "Medium", "Low"])
+        filter_agent = f3.selectbox("Filter Assignee", ["All"] + active_agents + ["Unassigned"])
+        filter_search = f4.text_input("Search Content", placeholder="Keywords...")
+
+        queue_res = api_request(f"{API_TICKETS}?status={filter_status}&priority={filter_priority}&assigned_agent={filter_agent}&search={filter_search}")
+        queue_tickets = queue_res.get("tickets", [])
+
+        st.markdown(f"**Showing {len(queue_tickets)} matching ticket(s)**")
+
+        for t in queue_tickets:
+            rev_flag = ' &nbsp; <span class="badge-review">NEEDS REVIEW</span>' if t.get("requires_review") else ''
+            p_badge = priority_badge_html(t["priority"])
+            header_summary = f"Ticket #{t['id']} — [{t['priority'].upper()}] {t['ticket'][:65]}..."
+
+            with st.expander(header_summary):
+                st.markdown(f"**Current Priority:** {p_badge} {rev_flag} &nbsp;|&nbsp; **Status:** `{t['status']}` &nbsp;|&nbsp; **Category:** `{t['category']}` &nbsp;|&nbsp; **Department:** `{t['department']}`", unsafe_allow_html=True)
+                st.write(f"**Full Description:** {t['ticket']}")
+
+                c_info1, c_info2 = st.columns(2)
+                with c_info1:
+                    conf_disp = f"{t['confidence']:.1%}" if t.get("confidence") else "N/A"
+                    st.write(f"**ML Prediction Confidence:** {conf_disp}")
+                    st.caption("How certain the AI classifier was about this ticket's priority.")
+                    st.write(f"**SLA Target Deadline:** {t.get('sla_deadline', 'N/A')}")
+                    st.caption("Calculated resolution deadline based on priority policy and deadline phrases.")
+                    st.write(f"**Assigned Agent:** {t.get('assigned_agent') or 'Unassigned'}")
+                    if t.get("priority_override"):
+                        st.info(f"Audit Trail: {t['priority_override']}")
+
+                with c_info2:
+                    st.markdown("##### Management Actions")
+                    new_status = st.selectbox(
+                        "Update Status",
+                        ["Open", "In Progress", "Resolved", "Closed"],
+                        index=["Open", "In Progress", "Resolved", "Closed"].index(t["status"]),
+                        key=f"act_status_{t['id']}",
+                    )
+
+                    curr_ag = t.get("assigned_agent") or "Unassigned"
+                    opts = ["Unassigned"] + active_agents
+                    ag_idx = opts.index(curr_ag) if curr_ag in opts else 0
+                    new_ag = st.selectbox("Reassign Agent", opts, index=ag_idx, key=f"act_ag_{t['id']}")
+
+                    if st.button("Apply Status & Assignment", key=f"btn_apply_{t['id']}"):
+                        api_request(f"{API_TICKETS}/{t['id']}", "PATCH", {
+                            "status": new_status,
+                            "assigned_agent": new_ag,
+                        })
+                        st.success("Changes committed.")
+                        st.rerun()
+
+                st.markdown("<hr style='border-color: #1E293B; margin: 16px 0;'>", unsafe_allow_html=True)
+
+                # Priority Override Section
+                ov_col1, ov_col2 = st.columns([1, 2])
+                with ov_col1:
+                    st.markdown("##### Human-in-the-Loop Override")
+                    st.caption("Manually adjust priority when operational impact requires it.")
+                    target_prio = st.selectbox("Select New Priority", ["High", "Medium", "Low"], key=f"ov_pr_{t['id']}")
+                with ov_col2:
+                    st.markdown("##### Mandatory Justification Reason")
+                    ov_reason = st.text_input("Enter why the AI priority is being changed", placeholder="e.g. Executive escalation per VP approval", key=f"ov_rs_{t['id']}")
+                    if st.button("Commit Priority Override", key=f"btn_ov_{t['id']}"):
+                        if not ov_reason.strip():
+                            st.error("A documented business justification is required for priority override.")
+                        else:
+                            ov_res = api_request(f"{API_TICKETS}/{t['id']}/priority-override", "POST", {
+                                "priority": target_prio,
+                                "reason": ov_reason,
+                            })
+                            if "error" in ov_res:
+                                st.error(ov_res["error"])
+                            else:
+                                st.success("Priority override logged in immutable audit trail.")
+                                st.rerun()
+
+                # Audit Event Timeline
+                full_doc = api_request(f"{API_TICKETS}/{t['id']}")
+                events_list = full_doc.get("timeline", [])
+                if events_list:
+                    st.markdown("##### Audit Event Log (Event Sourcing)")
+                    for ev in events_list:
+                        st.caption(f"• **{ev['timestamp']}** — [{ev['event_type']}] by {ev['author_name']}: {ev['reason']} (Updated Value: {ev.get('new_value', '')})")
+
+    # ── TAB 2: OPERATIONAL TELEMETRY ─────────────────────────────────────────
+    with agent_tabs[1]:
+        st.subheader("Operational Telemetry & Performance")
+        st.markdown(
+            """
+            <div class="guide-box">
+                <strong>What this view does:</strong> Provides leadership and team managers with real-time support workload metrics calculated directly from active database records (no fake/hardcoded figures).
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        stats = api_request(API_ANALYTICS)
+
+        s1, s2, s3, s4, s5 = st.columns(5)
+        with s1:
+            st.markdown('<div class="stat-card"><div class="stat-label">Total Tickets</div><div class="stat-value">' + str(stats.get("total", 0)) + '</div></div>', unsafe_allow_html=True)
+        with s2:
+            st.markdown('<div class="stat-card"><div class="stat-label">Open Tickets</div><div class="stat-value" style="color: #60A5FA !important;">' + str(stats.get("open", 0)) + '</div></div>', unsafe_allow_html=True)
+        with s3:
+            st.markdown('<div class="stat-card"><div class="stat-label">In Progress</div><div class="stat-value" style="color: #FBBF24 !important;">' + str(stats.get("in_progress", 0)) + '</div></div>', unsafe_allow_html=True)
+        with s4:
+            st.markdown('<div class="stat-card"><div class="stat-label">Resolved</div><div class="stat-value" style="color: #34D399 !important;">' + str(stats.get("resolved", 0)) + '</div></div>', unsafe_allow_html=True)
+        with s5:
+            st.markdown('<div class="stat-card"><div class="stat-label">Overrides Logged</div><div class="stat-value" style="color: #F472B6 !important;">' + str(stats.get("total_overrides", 0)) + '</div></div>', unsafe_allow_html=True)
+
+        st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+
+        g1, g2 = st.columns(2)
+        with g1:
+            st.markdown("##### Tickets by Technical Category")
+            by_c = stats.get("by_category", {})
+            if by_c:
+                st.bar_chart(pd.Series(by_c))
+
+        with g2:
+            st.markdown("##### Tickets by Priority Level")
+            by_p = stats.get("by_priority", {})
+            if by_p:
+                st.bar_chart(pd.Series(by_p))
+
+        # Configurable SLA Target Reference
+        st.markdown("##### Configured SLA Target Policy")
+        st.caption("Default response and resolution hours applied per priority level:")
+        sla_table = stats.get("sla_policies", {})
+        if sla_table:
+            sla_df = pd.DataFrame.from_dict(sla_table, orient="index")
+            sla_df.columns = ["Target Response (Hours)", "Target Resolution (Hours)"]
+            st.table(sla_df)
+
+    # ── TAB 3: MODEL INTELLIGENCE ────────────────────────────────────────────
+    with agent_tabs[2]:
+        st.subheader("Machine Learning Evaluation & Diagnostics")
+        st.markdown(
+            """
+            <div class="guide-box">
+                <strong>What this view does:</strong> Provides technical transparency and evidence for ML audits and viva defense. It shows the cross-validation comparison across 4 different algorithms, held-out test split results, and the confusion matrix.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        metrics_obj = api_request(API_METRICS)
+
+        st.markdown("##### 1. Algorithm Benchmarking (5-Fold Stratified Cross-Validation)")
+        st.caption("We evaluated 4 text classification models on the training data to select the optimal architecture:")
+
+        if "candidate_benchmark_cv" in metrics_obj:
+            cv_dict = metrics_obj["candidate_benchmark_cv"]
+            cv_df = pd.DataFrame.from_dict(cv_dict, orient="index")
+            cv_df.columns = ["CV Mean Accuracy", "CV Macro F1-Score"]
+            cv_df["CV Mean Accuracy"] = cv_df["CV Mean Accuracy"].apply(lambda v: f"{v:.2%}")
+            cv_df["CV Macro F1-Score"] = cv_df["CV Macro F1-Score"].apply(lambda v: f"{v:.4f}")
+            st.table(cv_df)
+
+        st.markdown("<hr style='border-color: #1E293B; margin: 20px 0;'>", unsafe_allow_html=True)
+
+        st.markdown("##### 2. Independent Test Split Verification (240 Tickets)")
+        st.caption("Final evaluation on unseen test data using the selected best model:")
+        if "metrics" in metrics_obj:
+            pri_eval = metrics_obj["metrics"]["priority"]
+            cat_eval = metrics_obj["metrics"]["category"]
+            dep_eval = metrics_obj["metrics"]["department"]
+
+            e1, e2, e3 = st.columns(3)
+            with e1:
+                st.markdown(f'<div class="stat-card"><div class="stat-label">Priority Test Accuracy</div><div class="stat-value">{pri_eval["accuracy"]:.2%}</div><small style="color:#CBD5E1;">Macro F1: {pri_eval["macro_f1"]:.4f}</small></div>', unsafe_allow_html=True)
+            with e2:
+                st.markdown(f'<div class="stat-card"><div class="stat-label">Category Test Accuracy</div><div class="stat-value">{cat_eval["accuracy"]:.2%}</div><small style="color:#CBD5E1;">Macro F1: {cat_eval["macro_f1"]:.4f}</small></div>', unsafe_allow_html=True)
+            with e3:
+                st.markdown(f'<div class="stat-card"><div class="stat-label">Department Test Accuracy</div><div class="stat-value">{dep_eval["accuracy"]:.2%}</div><small style="color:#CBD5E1;">Macro F1: {dep_eval["macro_f1"]:.4f}</small></div>', unsafe_allow_html=True)
+
+            st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
+            st.markdown("##### 3. Priority Confusion Matrix")
+            st.caption("Rows show actual ground-truth classes; columns show predicted classes:")
+            cm_dict = pri_eval.get("confusion_matrix", {})
+            if "matrix" in cm_dict:
+                labels = cm_dict["labels"]
+                cm_df = pd.DataFrame(
+                    cm_dict["matrix"],
+                    index=[f"Actual {l}" for l in labels],
+                    columns=[f"Pred {l}" for l in labels],
+                )
+                st.dataframe(cm_df, use_container_width=True)
+
+    # ── TAB 4: DATA EXPORT ───────────────────────────────────────────────────
+    with agent_tabs[3]:
+        st.subheader("System Data Export & Reporting")
+        st.markdown(
+            """
+            <div class="guide-box">
+                <strong>What this view does:</strong> Allows IT compliance and operations leads to export ticket records, AI predictions, and audit override notes into standard CSV format for external auditing.
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        if st.button("Fetch Live Export Stream", type="primary"):
+            tickets_bundle = api_request(API_TICKETS)
+            raw_list = tickets_bundle.get("tickets", [])
+            if raw_list:
+                df_exp = pd.DataFrame(raw_list)
+                csv_payload = df_exp.to_csv(index=False).encode("utf-8")
+
+                st.download_button(
+                    label="Download Tickets CSV",
+                    data=csv_payload,
+                    file_name="nexus_tickets_export.csv",
+                    mime="text/csv",
+                )
+                st.dataframe(df_exp, use_container_width=True)

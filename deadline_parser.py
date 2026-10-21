@@ -46,3 +46,31 @@ def extract_deadline(text: str):
             return match.group(0).strip()
 
     return None
+
+
+def calculate_sla_target(priority: str, text: str = None) -> str:
+    """
+    Calculate SLA target timestamp ISO string based on priority and optional deadline phrase.
+    High: 4 hours, Medium: 24 hours, Low: 72 hours.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+
+    # Base hours by priority
+    priority_hours = {"High": 4, "Medium": 24, "Low": 72}
+    hours = priority_hours.get(priority, 24)
+
+    phrase = extract_deadline(text) if text else None
+    if phrase:
+        phrase_lower = phrase.lower()
+        if any(w in phrase_lower for w in ["asap", "immediately", "urgent"]):
+            hours = min(hours, 2)
+        elif "today" in phrase_lower:
+            hours = min(hours, 8)
+        elif "tomorrow" in phrase_lower:
+            hours = min(hours, 24)
+
+    sla_time = now + timedelta(hours=hours)
+    return sla_time.strftime("%Y-%m-%d %H:%M:%S")
+

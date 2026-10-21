@@ -1,0 +1,342 @@
+{
+  "timestamp": "2026-10-21T15:39:34.319247",
+  "model_version": "nexus-v2.1-calibrated",
+  "dataset_total_rows": 1200,
+  "train_rows": 960,
+  "test_rows": 240,
+  "best_priority_algorithm": "Logistic Regression (balanced)",
+  "candidate_benchmark_cv": {
+    "Logistic Regression (balanced)": {
+      "cv_accuracy_mean": 0.9958,
+      "cv_f1_macro_mean": 0.9958
+    },
+    "Linear SVM (Calibrated)": {
+      "cv_accuracy_mean": 0.9917,
+      "cv_f1_macro_mean": 0.9914
+    },
+    "Multinomial Naive Bayes": {
+      "cv_accuracy_mean": 0.9854,
+      "cv_f1_macro_mean": 0.9854
+    },
+    "ExtraTrees Classifier": {
+      "cv_accuracy_mean": 0.9167,
+      "cv_f1_macro_mean": 0.917
+    }
+  },
+  "vectorizer_config": {
+    "max_features": 5000,
+    "ngram_range": [
+      1,
+      2
+    ],
+    "sublinear_tf": true
+  },
+  "metrics": {
+    "priority": {
+      "accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "weighted_precision": 1.0,
+      "weighted_recall": 1.0,
+      "weighted_f1": 1.0,
+      "confusion_matrix": {
+        "labels": [
+          "High",
+          "Low",
+          "Medium"
+        ],
+        "matrix": [
+          [
+            87,
+            0,
+            0
+          ],
+          [
+            0,
+            74,
+            0
+          ],
+          [
+            0,
+            0,
+            79
+          ]
+        ]
+      },
+      "classification_report": {
+        "High": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 87.0
+        },
+        "Low": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 74.0
+        },
+        "Medium": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 79.0
+        },
+        "accuracy": 1.0,
+        "macro avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 240.0
+        }
+      }
+    },
+    "category": {
+      "accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "weighted_precision": 1.0,
+      "weighted_recall": 1.0,
+      "weighted_f1": 1.0,
+      "confusion_matrix": {
+        "labels": [
+          "Access Request",
+          "Billing Issue",
+          "Deployment Issue",
+          "HR Request",
+          "Infrastructure Issue",
+          "Security Issue"
+        ],
+        "matrix": [
+          [
+            41,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            45,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            46,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            33,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            40,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            35
+          ]
+        ]
+      },
+      "classification_report": {
+        "Access Request": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 41.0
+        },
+        "Billing Issue": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 45.0
+        },
+        "Deployment Issue": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 46.0
+        },
+        "HR Request": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 33.0
+        },
+        "Infrastructure Issue": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 40.0
+        },
+        "Security Issue": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 35.0
+        },
+        "accuracy": 1.0,
+        "macro avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 240.0
+        }
+      }
+    },
+    "department": {
+      "accuracy": 1.0,
+      "macro_precision": 1.0,
+      "macro_recall": 1.0,
+      "macro_f1": 1.0,
+      "weighted_precision": 1.0,
+      "weighted_recall": 1.0,
+      "weighted_f1": 1.0,
+      "confusion_matrix": {
+        "labels": [
+          "DevOps Department",
+          "Engineering Department",
+          "Finance Department",
+          "HR Department",
+          "IT Department",
+          "Security Department"
+        ],
+        "matrix": [
+          [
+            46,
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            40,
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            45,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            33,
+            0,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            41,
+            0
+          ],
+          [
+            0,
+            0,
+            0,
+            0,
+            0,
+            35
+          ]
+        ]
+      },
+      "classification_report": {
+        "DevOps Department": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 46.0
+        },
+        "Engineering Department": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 40.0
+        },
+        "Finance Department": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 45.0
+        },
+        "HR Department": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 33.0
+        },
+        "IT Department": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 41.0
+        },
+        "Security Department": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 35.0
+        },
+        "accuracy": 1.0,
+        "macro avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 240.0
+        },
+        "weighted avg": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 240.0
+        }
+      }
+    }
+  }
+}

@@ -6,6 +6,8 @@ env/
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -16,16 +18,15 @@ __pycache__/
 
 # IDE
 .vscode/
+.idea/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Large ML files
-*.pkl
-*.joblib
-*.h5
-*.keras
+# Database
+*.db
+tickets.db
 
 # Logs
 *.log

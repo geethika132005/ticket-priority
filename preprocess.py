@@ -6,10 +6,18 @@ from nltk.corpus import stopwords
 
 # Download stopwords once when the module is first imported.
 try:
-    _STOP_WORDS = set(stopwords.words("english"))
+    _BASE_STOP_WORDS = set(stopwords.words("english"))
 except LookupError:
     nltk.download("stopwords", quiet=True)
-    _STOP_WORDS = set(stopwords.words("english"))
+    _BASE_STOP_WORDS = set(stopwords.words("english"))
+
+# Words critical for intent, negation, and priority that must NOT be removed
+PRESERVED_WORDS = {
+    "not", "no", "never", "unable", "cannot", "without", "against",
+    "down", "fail", "failed", "failing", "error", "crashed", "urgent"
+}
+
+_STOP_WORDS = _BASE_STOP_WORDS - PRESERVED_WORDS
 
 
 def preprocess_text(text: str) -> str:
@@ -17,9 +25,10 @@ def preprocess_text(text: str) -> str:
     Clean ticket text for ML models.
 
     Steps:
-    1. Convert to lowercase
-    2. Remove punctuation
-    3. Remove English stopwords
+    1. Safe string conversion
+    2. Convert to lowercase
+    3. Remove punctuation
+    4. Remove non-negation English stopwords
     """
     if not isinstance(text, str):
         text = str(text)

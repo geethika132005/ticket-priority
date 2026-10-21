@@ -1,0 +1,298 @@
+{
+  "summary": {
+    "dataset_file": "ticket_priority_dataset_1200_rows.xlsx",
+    "total_records": 1200,
+    "usable_records": 1200,
+    "columns": [
+      "Ticket Description",
+      "Priority",
+      "Category",
+      "Department"
+    ],
+    "missing_values": {
+      "Ticket Description": 0,
+      "Priority": 0,
+      "Category": 0,
+      "Department": 0
+    },
+    "unique_ticket_descriptions": 60,
+    "duplicate_ticket_descriptions": 1140,
+    "priority_distribution": {
+      "Medium": 534,
+      "High": 440,
+      "Low": 226
+    },
+    "category_distribution": {
+      "Deployment Issue": 234,
+      "Infrastructure Issue": 204,
+      "Security Issue": 198,
+      "HR Request": 197,
+      "Access Request": 188,
+      "Billing Issue": 179
+    },
+    "department_distribution": {
+      "DevOps Department": 234,
+      "Engineering Department": 204,
+      "Security Department": 198,
+      "HR Department": 197,
+      "IT Department": 188,
+      "Finance Department": 179
+    },
+    "conflicting_priority_templates": 60,
+    "category_deterministic_mapping": true,
+    "department_deterministic_mapping": true,
+    "pii_records_detected": 0
+  },
+  "conflicts": {
+    "API gateway timeout": {
+      "High": 18,
+      "Medium": 7
+    },
+    "Account disabled unexpectedly": {
+      "Medium": 15,
+      "Low": 6
+    },
+    "Application server crashed": {
+      "High": 11,
+      "Medium": 5
+    },
+    "Artifact upload failed": {
+      "High": 11,
+      "Medium": 9
+    },
+    "Attendance regularization required": {
+      "Low": 8,
+      "Medium": 8
+    },
+    "Billing discrepancy found": {
+      "Medium": 13,
+      "Low": 9,
+      "High": 5
+    },
+    "Build failed after merge": {
+      "Medium": 13,
+      "High": 13
+    },
+    "CI pipeline failing": {
+      "High": 14,
+      "Medium": 8
+    },
+    "CPU usage very high": {
+      "High": 8,
+      "Medium": 8
+    },
+    "Cannot access shared drive": {
+      "Medium": 18,
+      "Low": 4
+    },
+    "Data leak concern raised": {
+      "High": 13,
+      "Medium": 4
+    },
+    "Database server unreachable": {
+      "High": 14,
+      "Medium": 8
+    },
+    "Deployment failed on production": {
+      "High": 14,
+      "Medium": 10
+    },
+    "Disk storage almost full": {
+      "High": 17,
+      "Medium": 11
+    },
+    "Docker container not starting": {
+      "High": 10,
+      "Medium": 9
+    },
+    "Duplicate invoice generated": {
+      "Low": 7,
+      "High": 5,
+      "Medium": 4
+    },
+    "Email account locked": {
+      "Medium": 13,
+      "Low": 9
+    },
+    "Endpoint protection disabled": {
+      "High": 11,
+      "Medium": 8
+    },
+    "Expense claim pending approval": {
+      "Medium": 7,
+      "High": 4,
+      "Low": 3
+    },
+    "Helm deployment stuck": {
+      "High": 14,
+      "Medium": 11
+    },
+    "Holiday calendar clarification needed": {
+      "Medium": 15,
+      "Low": 11
+    },
+    "Image pull error": {
+      "High": 19,
+      "Medium": 10
+    },
+    "Insurance details required": {
+      "Low": 9,
+      "Medium": 8
+    },
+    "Invoice not generated": {
+      "Medium": 8,
+      "Low": 6,
+      "High": 6
+    },
+    "Jenkins job failed": {
+      "Medium": 9,
+      "High": 7
+    },
+    "Kubernetes pod restarting continuously": {
+      "High": 9,
+      "Medium": 5
+    },
+    "Leave balance mismatch": {
+      "Low": 9,
+      "Medium": 6
+    },
+    "Load balancer not responding": {
+      "High": 16,
+      "Medium": 8
+    },
+    "MFA verification not working": {
+      "Medium": 13,
+      "Low": 9
+    },
+    "Malware detected on system": {
+      "High": 11,
+      "Medium": 4
+    },
+    "Need GitHub repository access": {
+      "Low": 8,
+      "Medium": 4
+    },
+    "Need access to internal portal": {
+      "Medium": 10,
+      "Low": 6
+    },
+    "Need experience letter": {
+      "Medium": 9,
+      "Low": 5
+    },
+    "Need firewall whitelist access": {
+      "High": 14,
+      "Medium": 4
+    },
+    "Need leave approval": {
+      "Low": 12,
+      "Medium": 11
+    },
+    "Network latency issue": {
+      "High": 9,
+      "Medium": 7
+    },
+    "Onboarding documents pending": {
+      "Medium": 14,
+      "Low": 9
+    },
+    "PF details request": {
+      "Medium": 14,
+      "Low": 9
+    },
+    "Password reset required": {
+      "Medium": 10,
+      "Low": 6
+    },
+    "Payment confirmation missing": {
+      "Low": 9,
+      "High": 7,
+      "Medium": 4
+    },
+    "Payment was not received": {
+      "Low": 8,
+      "Medium": 6,
+      "High": 4
+    },
+    "Payslip not available": {
+      "Medium": 11,
+      "Low": 10
+    },
+    "Phishing email received": {
+      "High": 14,
+      "Medium": 9
+    },
+    "Production release blocked": {
+      "High": 13,
+      "Medium": 10
+    },
+    "Production website unavailable": {
+      "High": 12,
+      "Medium": 11
+    },
+    "Refund pending": {
+      "Medium": 7,
+      "Low": 4,
+      "High": 4
+    },
+    "Reimbursement not processed": {
+      "Low": 8,
+      "High": 5,
+      "Medium": 2
+    },
+    "Resignation workflow query": {
+      "Medium": 13,
+      "Low": 6
+    },
+    "Rollback required urgently": {
+      "High": 17,
+      "Medium": 13
+    },
+    "SSO login failing": {
+      "Low": 11,
+      "Medium": 9
+    },
+    "Salary not credited": {
+      "Medium": 5,
+      "High": 5,
+      "Low": 4
+    },
+    "Security audit finding reported": {
+      "Medium": 6,
+      "High": 6
+    },
+    "Server is down": {
+      "High": 13,
+      "Medium": 7
+    },
+    "Suspicious login attempt detected": {
+      "High": 16,
+      "Medium": 5
+    },
+    "Unable to login to HR portal": {
+      "Medium": 11,
+      "Low": 8
+    },
+    "Unable to login to VPN": {
+      "Low": 9,
+      "Medium": 9
+    },
+    "Unauthorized access alert": {
+      "High": 12,
+      "Medium": 9
+    },
+    "User account compromised": {
+      "High": 17,
+      "Medium": 9
+    },
+    "VPN security warning": {
+      "High": 15,
+      "Medium": 11
+    },
+    "Vendor payment delayed": {
+      "Medium": 9,
+      "High": 7,
+      "Low": 4
+    }
+  }
+}
