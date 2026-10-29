@@ -1,4 +1,4 @@
-# ⚡ NEXUS AI: Automated IT Ticket Priority & Classification System
+# NEXUS AI: Automated IT Ticket Priority & Classification System
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://ticket-priority-nexus.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
@@ -12,13 +12,13 @@ An enterprise-grade, end-to-end **Machine Learning & NLP Support Ticket Triage S
 
 ---
 
-## 🌐 Live Interactive Application
+## Live Interactive Application
 
 The production application is deployed and live on **Streamlit Community Cloud**:
 
-👉 **Live URL:** [https://ticket-priority-nexus.streamlit.app/](https://ticket-priority-nexus.streamlit.app/)
+**Live URL:** [https://ticket-priority-nexus.streamlit.app/](https://ticket-priority-nexus.streamlit.app/)
 
-### 🔑 Demo Access Credentials
+### Demo Access Credentials
 
 | Role | Username | Password | Capabilities |
 | :--- | :--- | :--- | :--- |
@@ -27,7 +27,7 @@ The production application is deployed and live on **Streamlit Community Cloud**
 
 ---
 
-## 🏗️ System Architecture & Workflow
+## System Architecture & Workflow
 
 ```
                        ┌──────────────────────────────────────────────┐
@@ -51,7 +51,7 @@ The production application is deployed and live on **Streamlit Community Cloud**
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
 * **Multi-Target Machine Learning with Confidence**: Simultaneously predicts ticket Priority, Category, and Department with calibrated probability scoring. Flags low-confidence classifications (`< 65%`) for human review.
 * **Empirical Multi-Model Benchmarking**: 5-Fold Stratified Cross-Validation on training data comparing Logistic Regression, Linear SVM (calibrated), Multinomial Naive Bayes, and ExtraTrees.
@@ -63,7 +63,7 @@ The production application is deployed and live on **Streamlit Community Cloud**
 
 ---
 
-## 📊 Machine Learning Model Benchmarks
+## Machine Learning Model Benchmarks
 
 ### 1. Candidate Algorithm Comparison (5-Fold Stratified CV on Training Set)
 
@@ -86,7 +86,7 @@ The production application is deployed and live on **Streamlit Community Cloud**
 
 ---
 
-## 📡 API Endpoint Reference
+## API Endpoint Reference
 
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
@@ -107,7 +107,7 @@ The production application is deployed and live on **Streamlit Community Cloud**
 
 ---
 
-## ⚡ Quickstart Guide (Local Development)
+## Quickstart Guide (Local Development)
 
 ### 1. Install Dependencies
 ```bash
@@ -132,7 +132,7 @@ python -m streamlit run frontend.py
 
 ---
 
-## 🧪 Running Automated Tests
+## Running Automated Tests
 
 Run the full `pytest` suite:
 
@@ -152,7 +152,7 @@ tests/test_security.py ....                                   [100%]
 
 ---
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 NEXUS-AI/
