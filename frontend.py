@@ -28,6 +28,40 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# ── Embedded Backend Auto-Start (Enables 1-Click Cloud Deployment) ────────────
+@st.cache_resource
+def ensure_backend_alive() -> bool:
+    """Ensure Flask backend is reachable. If running on localhost/cloud container, auto-boots Flask."""
+    if "127.0.0.1" in API_BASE or "localhost" in API_BASE:
+        try:
+            r = requests.get(f"{API_BASE}/health", timeout=0.8)
+            if r.status_code == 200:
+                return True
+        except Exception:
+            pass
+
+        import threading
+        import time
+        from app import app as flask_app
+
+        def _run():
+            flask_app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+
+        server_thread = threading.Thread(target=_run, daemon=True)
+        server_thread.start()
+
+        for _ in range(25):
+            time.sleep(0.2)
+            try:
+                r = requests.get(f"{API_BASE}/health", timeout=0.8)
+                if r.status_code == 200:
+                    return True
+            except Exception:
+                pass
+    return False
+
+ensure_backend_alive()
+
 # ── Bulletproof Enterprise CSS (Prevents Any White Leaks, Enforces Contrast) ──
 st.markdown(
     """
