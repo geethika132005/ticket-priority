@@ -1,5 +1,6 @@
 # ⚡ NEXUS AI: Automated IT Ticket Priority & Classification System
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Streamlit%20Cloud-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)](https://ticket-priority-nexus.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.1.3-green.svg)](https://flask.palletsprojects.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.45.1-red.svg)](https://streamlit.io/)
@@ -8,6 +9,21 @@
 [![JWT](https://img.shields.io/badge/Auth-Stateless%20JWT%20%2B%20RBAC-purple.svg)](https://pyjwt.readthedocs.io/)
 
 An enterprise-grade, end-to-end **Machine Learning & NLP Support Ticket Triage System**. Automatically predicts ticket **Priority** (*High*, *Medium*, *Low*), **Category**, and target **Department**, while computing calibrated **Confidence Scores**, parsing natural language **Deadlines**, and enforcing **Human-in-the-Loop Priority Overrides with Audit Event Sourcing**.
+
+---
+
+## 🌐 Live Interactive Application
+
+The production application is deployed and live on **Streamlit Community Cloud**:
+
+👉 **Live URL:** [https://ticket-priority-nexus.streamlit.app/](https://ticket-priority-nexus.streamlit.app/)
+
+### 🔑 Demo Access Credentials
+
+| Role | Username | Password | Capabilities |
+| :--- | :--- | :--- | :--- |
+| **Customer Portal** | `user1` | `user123` | Submit support tickets, inspect real-time ML inferences & confidence, track SLA countdown |
+| **Operations & Agent Console** | `admin` | `admin123` | Triage active queue, execute policy overrides with audit reasons, assign tickets, inspect ML benchmarks |
 
 ---
 
@@ -42,6 +58,7 @@ An enterprise-grade, end-to-end **Machine Learning & NLP Support Ticket Triage S
 * **Human-in-the-Loop & Audit Event Sourcing**: Authorized agents can override priority predictions with mandatory documented justifications, permanently logged in `ticket_events` while preserving raw ML predictions.
 * **Stateless JWT & Role-Based Access Control**: Secure token authentication enforcing strict data boundaries between Customers, Agents, and Administrators.
 * **Negation-Preserving NLP Preprocessor**: Whitelists critical operational tokens (`not`, `never`, `unable`, `cannot`, `down`, `fail`, `error`, `crashed`) during stopword removal.
+* **Dynamic SLA & Natural Language Deadline Detection**: Identifies urgency phrases like *"ASAP"*, *"by tomorrow"*, or *"within 2 hours"* and computes real-time SLA breach targets.
 * **Production Test Suite**: 30 passing automated tests covering API endpoints, dataset validation, preprocessing, SLA parsing, and security/RBAC.
 
 ---
@@ -90,7 +107,7 @@ An enterprise-grade, end-to-end **Machine Learning & NLP Support Ticket Triage S
 
 ---
 
-## ⚡ Quickstart Guide
+## ⚡ Quickstart Guide (Local Development)
 
 ### 1. Install Dependencies
 ```bash
@@ -107,17 +124,11 @@ python ml/src/clean_dataset.py
 python train_model.py
 ```
 
-### 3. Start Backend REST API
-```bash
-python app.py
-```
-*API will run at `http://127.0.0.1:5000`*
-
-### 4. Start Streamlit Dashboard UI *(in a new terminal)*
+### 3. Launch the Application
 ```bash
 python -m streamlit run frontend.py
 ```
-*UI will launch at `http://localhost:8501`*
+*The embedded backend service automatically boots and connects on port 5000, serving the UI at `http://localhost:8501`.*
 
 ---
 
@@ -136,7 +147,7 @@ tests/test_dataset.py ....                                    [ 53%]
 tests/test_deadline_parser.py .....                           [ 70%]
 tests/test_preprocess.py .....                                [ 86%]
 tests/test_security.py ....                                   [100%]
-===================== 30 passed in 5.87s =====================
+===================== 30 passed in 4.89s =====================
 ```
 
 ---
@@ -153,6 +164,8 @@ NEXUS-AI/
 ├── preprocess.py               # Negation-preserving text preprocessor
 ├── deadline_parser.py          # Temporal regex parser & SLA target engine
 ├── requirements.txt            # Python dependencies
+├── Procfile                    # Cloud process definition
+├── render.yaml                 # Render cloud deployment blueprint
 ├── dataset/                    # Active training datasets
 ├── ml/
 │   ├── data/                   # raw/ and processed/ datasets
